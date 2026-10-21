@@ -48,20 +48,33 @@ window.addEventListener('message', (event) => {
 });
 
 // ---------------------------------------------------------
-// Theme syncing: the popup follows YouTube's light/dark theme
+// Theme: the popup follows YouTube's light or dark theme
 // ---------------------------------------------------------
+
+// Read from the page's own background colour: YouTube doesn't set its "dark"
+// attribute when it follows the device theme.
+function youTubeTheme() {
+  const app = document.querySelector('ytd-app');
+  const channels = app ? getComputedStyle(app).backgroundColor.match(/[\d.]+/g)?.map(Number) : null;
+  if (channels?.length >= 3 && (channels[3] ?? 1) > 0) {
+    const [r, g, b] = channels;
+    return 0.299 * r + 0.587 * g + 0.114 * b < 128 ? 'dark' : 'light';
+  }
+  return document.documentElement.hasAttribute('dark') ? 'dark' : 'light';
+}
+
+let lastTheme = null;
 function syncTheme() {
   if (!extensionAlive()) return;
-  const isDarkMode = document.documentElement.hasAttribute('dark') ||
-                     document.documentElement.classList.contains('dark') ||
-                     (document.body && document.body.classList.contains('dark'));
-
-  chrome.storage.local.set({ tubeTheme: isDarkMode ? 'dark' : 'light' });
+  const theme = youTubeTheme();
+  if (theme === lastTheme) return;
+  lastTheme = theme;
+  chrome.storage.local.set({ tubeTheme: theme });
 }
 
 syncTheme();
-
 new MutationObserver(syncTheme).observe(document.documentElement, {
   attributes: true,
-  attributeFilter: ['class', 'dark']
+  attributeFilter: ['class', 'dark', 'style'],
 });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(syncTheme, 300));

@@ -236,24 +236,43 @@ describe('English browser, dark theme', () => {
     await page.close();
   });
 
-  test('the popup lists every setting and saves a choice', async () => {
-    await setSettings(browser.worker, { stableVolume: true, voiceBoost: false });
+  test('the popup shows every setting, saves choices and resets', async () => {
+    await setSettings(browser.worker, { stableVolume: true, voiceBoost: false, quality: 'auto' });
     const page = await browser.context.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`chrome-extension://${browser.extensionId}/popup.html`);
-    assert.equal(await page.locator('select').count(), 7);
-    // Every setting always has a value: no "leave it to YouTube" choice.
-    assert.equal(await page.locator('option', { hasText: /change/i }).count(), 0);
+
+    // 5 setting switches + the master switch; dropdowns for audio track and quality.
+    assert.equal(await page.locator('input[role="switch"]').count(), 6);
+    assert.equal(await page.locator('select').count(), 2);
+    assert.deepEqual(await page.locator('.group h2').allTextContents(), ['Audio', 'Video']);
+    assert.match(await page.textContent('#statusText'), /Open a YouTube video/);
+    const version = await browser.worker.evaluate(() => chrome.runtime.getManifest().version);
+    assert.equal(await page.textContent('#version'), `v${version}`);
+
     await page.selectOption('#setting-quality', 'hd1080');
-    // Like YouTube, voice boost on means stable volume off.
-    await page.selectOption('#setting-voiceBoost', 'on');
+    // Like YouTube, voice boost on means stable volume off, and greyed out.
+    await page.click('label[for="setting-voiceBoost"]');
     const saved = await eventually(async () => {
       const s = await getSettings(browser.worker);
       return { ok: s.quality === 'hd1080' && s.voiceBoost === true && s.stableVolume === false, s };
     });
     assert.ok(saved.ok, JSON.stringify(saved.s));
-    assert.equal(await page.inputValue('#setting-stableVolume'), 'off');
+    assert.equal(await page.isDisabled('#setting-stableVolume'), true);
+    assert.match(await page.textContent('#desc-stableVolume'), /voice boost/);
+
+    // Reset needs a second click.
+    await page.click('#reset');
+    assert.equal((await getSettings(browser.worker)).quality, 'hd1080', 'reset on the first click');
+    await page.click('#reset');
+    const reset = await eventually(async () => {
+      const s = await getSettings(browser.worker);
+      return { ok: s.quality === 'auto' && s.voiceBoost === false && s.stableVolume === true, s };
+    });
+    assert.ok(reset.ok, JSON.stringify(reset.s));
+    assert.equal(await page.isChecked('#setting-stableVolume'), true);
+
     assert.deepEqual(errors, []);
     await page.close();
   });
@@ -272,6 +291,72 @@ describe('English browser, dark theme', () => {
     assert.equal(rows[ICON.voiceBoost], true, JSON.stringify(rows));
     assert.equal(rows[ICON.stableVolume], false, JSON.stringify(rows));
     await page.close();
+  });
+});
+
+describe("YouTube's theme", () => {
+  let browser;
+  before(async () => { browser = await launchReady(); });
+  after(async () => { await browser?.close(); });
+
+  test('the popup follows YouTube from light to dark', async () => {
+    let page = await openYouTube(browser.context, watch(CLASSIC));
+    const light = await eventually(async () => {
+      const { tubeTheme } = await browser.worker.evaluate(() => chrome.storage.local.get('tubeTheme'));
+      return { ok: tubeTheme === 'light', tubeTheme };
+    });
+    assert.ok(light.ok, `stored ${light.tubeTheme}`);
+    await page.close();
+
+    // YouTube keeps a signed-out viewer's theme in its PREF cookie; f6=400 is dark.
+    await browser.context.addCookies([{ name: 'PREF', value: 'f6=400', domain: '.youtube.com', path: '/' }]);
+    page = await openYouTube(browser.context, watch(CLASSIC));
+    const dark = await eventually(async () => {
+      const { tubeTheme } = await browser.worker.evaluate(() => chrome.storage.local.get('tubeTheme'));
+      return { ok: tubeTheme === 'dark', tubeTheme };
+    });
+    assert.ok(dark.ok, `stored ${dark.tubeTheme}`);
+    await page.close();
+
+    const popup = await browser.context.newPage();
+    await popup.goto(`chrome-extension://${browser.extensionId}/popup.html`);
+    await popup.waitForTimeout(300);
+    assert.equal(await popup.evaluate(() => document.documentElement.dataset.theme), 'dark');
+    await popup.close();
+  });
+
+  test("the theme button picks light or dark, and YouTube's theme doesn't override it", async () => {
+    const open = async () => {
+      const popup = await browser.context.newPage();
+      await popup.goto(`chrome-extension://${browser.extensionId}/popup.html`);
+      await popup.waitForTimeout(300);
+      return popup;
+    };
+    const theme = (popup) => popup.evaluate(() => document.documentElement.dataset.theme);
+    const setYouTubeTheme = (t) => browser.worker.evaluate((t) => chrome.storage.local.set({ tubeTheme: t }), t);
+
+    let popup = await open();
+    assert.equal(await theme(popup), 'dark', 'should match YouTube (dark) by default');
+    await popup.click('#themeButton');
+    assert.equal(await theme(popup), 'light');
+    assert.match(await popup.getAttribute('#themeButton', 'aria-label'), /light/);
+
+    // YouTube switching theme leaves the user's pick alone, now and next time.
+    await setYouTubeTheme('light');
+    await setYouTubeTheme('dark');
+    await popup.waitForTimeout(200);
+    assert.equal(await theme(popup), 'light');
+    await popup.close();
+    popup = await open();
+    assert.equal(await theme(popup), 'light', 'pick not kept');
+
+    await popup.click('#themeButton'); // dark
+    assert.equal(await theme(popup), 'dark');
+    await popup.click('#themeButton'); // back to matching YouTube
+    await setYouTubeTheme('light');
+    await popup.waitForTimeout(200);
+    assert.equal(await theme(popup), 'light', 'not following YouTube again');
+    await popup.close();
   });
 });
 

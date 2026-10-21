@@ -1,70 +1,127 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const settingsDiv = document.getElementById('settings');
-  const extensionEnabled = document.getElementById('extensionEnabled');
-  const themeToggleBtn = document.getElementById('themeToggle');
-  const selects = {};
+  const settingsEl = document.getElementById('settings');
+  const masterSwitch = document.getElementById('extensionEnabled');
+  const statusEl = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const resetButton = document.getElementById('reset');
+  const controls = {};     // setting key -> its switch or dropdown
+  const rows = {};         // setting key -> { row, desc }
   let current = TubeToggles.normalize({});
+  let tabKind = 'other';   // the active tab: 'video', 'youtube' or 'other'
 
-  // Select values are strings; toggles are stored as true / false.
-  const toOption = (value) => (value === true ? 'on' : value === false ? 'off' : value);
-  const fromOption = (option) => (option === 'on' ? true : option === 'off' ? false : option);
+  const save = (key, value) => chrome.storage.sync.set(TubeToggles.changesFor(current, key, value));
 
-  function optionsFor(key) {
-    const kind = TubeToggles.SETTINGS[key].kind;
-    if (kind === 'toggle') return [['on', 'On'], ['off', 'Off']];
-    if (kind === 'quality') {
+  // ---------------------------------------------------------
+  // Rows, grouped into sections, built from settings.js
+  // ---------------------------------------------------------
+
+  function dropdownOptions(key) {
+    if (TubeToggles.SETTINGS[key].kind === 'quality') {
       return [['auto', 'Auto'], ['highest', 'Highest available'],
         ...TubeToggles.QUALITY_LEVELS.map((q) => [q.value, q.label])];
     }
     const options = [['original', 'Original']];
     // A language saved from the player gets its own entry.
-    if (current.audioTrack && current.audioTrack !== 'original') {
+    if (current.audioTrack !== 'original') {
       options.push([current.audioTrack, TubeToggles.languageLabel(current.audioTrack)]);
     }
     return options;
   }
 
-  function fillSelect(key) {
-    const select = selects[key];
-    select.replaceChildren(...optionsFor(key).map(([value, label]) => new Option(label, value)));
-    select.value = toOption(current[key]);
-  }
-
+  const sections = {};
   for (const [key, setting] of Object.entries(TubeToggles.SETTINGS)) {
+    if (!sections[setting.group]) {
+      const section = document.createElement('section');
+      section.className = 'group';
+      const heading = document.createElement('h2');
+      heading.id = `group-${setting.group.toLowerCase()}`;
+      heading.textContent = setting.group;
+      section.setAttribute('aria-labelledby', heading.id);
+      section.appendChild(heading);
+      settingsEl.appendChild(section);
+      sections[setting.group] = section;
+    }
+
     const row = document.createElement('label');
-    row.className = 'toggle-row';
+    row.className = 'row';
     row.htmlFor = `setting-${key}`;
 
-    const info = document.createElement('div');
-    info.className = 'toggle-info';
+    const text = document.createElement('span');
+    text.className = 'row-text';
     const title = document.createElement('span');
-    title.className = 'toggle-title';
+    title.className = 'row-title';
     title.textContent = setting.label;
     const desc = document.createElement('span');
-    desc.className = 'toggle-desc';
-    desc.textContent = setting.description;
-    info.append(title, desc);
+    desc.className = 'row-desc';
+    desc.id = `desc-${key}`;
+    text.append(title, desc);
 
-    const select = document.createElement('select');
-    select.id = `setting-${key}`;
-    select.addEventListener('change', () => {
-      chrome.storage.sync.set(TubeToggles.changesFor(current, key, fromOption(select.value)));
-    });
-    selects[key] = select;
+    let control;
+    let controlWrap;
+    if (setting.kind === 'toggle') {
+      control = document.createElement('input');
+      control.type = 'checkbox';
+      control.setAttribute('role', 'switch');
+      control.addEventListener('change', () => save(key, control.checked));
+      controlWrap = document.createElement('span');
+      controlWrap.className = 'switch';
+      const track = document.createElement('span');
+      track.className = 'track';
+      controlWrap.append(control, track);
+    } else {
+      control = document.createElement('select');
+      control.addEventListener('change', () => save(key, control.value));
+      controlWrap = control;
+    }
+    control.id = `setting-${key}`;
+    control.setAttribute('aria-describedby', desc.id);
 
-    row.append(info, select);
-    settingsDiv.appendChild(row);
+    row.append(text, controlWrap);
+    sections[setting.group].appendChild(row);
+    controls[key] = control;
+    rows[key] = { row, desc };
   }
 
-  function updateDimming(isEnabled) {
-    settingsDiv.classList.toggle('disabled', !isEnabled);
-    Object.values(selects).forEach((select) => { select.disabled = !isEnabled; });
+  // ---------------------------------------------------------
+  // Showing the current state
+  // ---------------------------------------------------------
+
+  function renderStatus() {
+    let text = 'Open a YouTube video to apply your settings';
+    let active = false;
+    if (!current.extensionEnabled) {
+      text = 'TubeToggles is off. YouTube is left as it is.';
+    } else if (tabKind === 'video') {
+      text = 'Active on this video';
+      active = true;
+    } else if (tabKind === 'youtube') {
+      text = 'Open a video to apply your settings';
+    }
+    statusText.textContent = text;
+    statusEl.classList.toggle('active', active);
   }
 
   function render() {
-    Object.keys(selects).forEach(fillSelect);
-    extensionEnabled.checked = current.extensionEnabled;
-    updateDimming(current.extensionEnabled);
+    masterSwitch.checked = current.extensionEnabled;
+    document.body.classList.toggle('is-off', !current.extensionEnabled);
+
+    for (const [key, setting] of Object.entries(TubeToggles.SETTINGS)) {
+      const control = controls[key];
+      if (setting.kind === 'toggle') {
+        control.checked = current[key];
+      } else {
+        control.replaceChildren(...dropdownOptions(key).map(([value, label]) => new Option(label, value)));
+        control.value = current[key];
+      }
+
+      // As in YouTube, stable volume is unavailable while voice boost is on.
+      const blocked = key === 'stableVolume' && current.voiceBoost;
+      if (blocked) control.checked = false;
+      control.disabled = !current.extensionEnabled || blocked;
+      rows[key].row.classList.toggle('disabled', control.disabled);
+      rows[key].desc.textContent = blocked ? 'Off while voice boost is on' : setting.description;
+    }
+    renderStatus();
   }
 
   chrome.storage.sync.get(null, (stored) => {
@@ -81,34 +138,89 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
     }
     if (areaName === 'local' && changes.tubeTheme) {
-      applyTheme(changes.tubeTheme.newValue);
+      youTubeTheme = changes.tubeTheme.newValue;
+      applyTheme();
     }
   });
 
-  extensionEnabled.addEventListener('change', (e) => {
-    chrome.storage.sync.set({ extensionEnabled: e.target.checked });
+  masterSwitch.addEventListener('change', () => {
+    chrome.storage.sync.set({ extensionEnabled: masterSwitch.checked });
   });
 
-  // Load theme
-  chrome.storage.local.get(['tubeTheme'], (result) => {
-    applyTheme(result.tubeTheme || 'dark');
-  });
-
-  function applyTheme(theme) {
-    if (theme === 'light') {
-      document.body.classList.add('light-mode');
-      document.body.classList.remove('dark-mode');
-    } else {
-      document.body.classList.add('dark-mode');
-      document.body.classList.remove('light-mode');
+  // The URL is only visible for YouTube tabs (the extension's host access);
+  // any other tab reads as 'other', which is all the status line needs.
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    try {
+      const url = new URL(tab?.url ?? '');
+      if (url.hostname === 'www.youtube.com') tabKind = url.pathname === '/watch' ? 'video' : 'youtube';
+    } catch {
+      tabKind = 'other';
     }
+    renderStatus();
+  });
+
+  // ---------------------------------------------------------
+  // Theme: matches YouTube's (as last seen by content.js) unless the user
+  // picks light or dark with the theme button. Their pick is kept apart from
+  // YouTube's theme, so YouTube never overrides it.
+  // ---------------------------------------------------------
+
+  const themeButton = document.getElementById('themeButton');
+  const THEME_MODES = ['auto', 'light', 'dark'];
+  const THEME_LABELS = {
+    auto: 'Theme: matches YouTube. Click for light.',
+    light: 'Theme: light. Click for dark.',
+    dark: 'Theme: dark. Click to match YouTube.',
+  };
+  let themeMode = 'auto';
+  // Before any visit to YouTube, follow the system theme.
+  let youTubeTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+  function applyTheme() {
+    const theme = themeMode === 'auto' ? youTubeTheme : themeMode;
+    document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+    themeButton.dataset.mode = themeMode;
+    themeButton.title = THEME_LABELS[themeMode];
+    themeButton.setAttribute('aria-label', THEME_LABELS[themeMode]);
   }
 
-  // Theme toggle button click listener
-  themeToggleBtn.addEventListener('click', () => {
-    const isLight = document.body.classList.contains('light-mode');
-    const newTheme = isLight ? 'dark' : 'light';
-    applyTheme(newTheme);
-    chrome.storage.local.set({ tubeTheme: newTheme });
+  applyTheme();
+  chrome.storage.local.get(['tubeTheme', 'popupTheme'], ({ tubeTheme, popupTheme }) => {
+    if (tubeTheme) youTubeTheme = tubeTheme;
+    if (THEME_MODES.includes(popupTheme)) themeMode = popupTheme;
+    applyTheme();
+  });
+
+  themeButton.addEventListener('click', () => {
+    themeMode = THEME_MODES[(THEME_MODES.indexOf(themeMode) + 1) % THEME_MODES.length];
+    applyTheme();
+    chrome.storage.local.set({ popupTheme: themeMode });
+  });
+
+  // ---------------------------------------------------------
+  // Footer
+  // ---------------------------------------------------------
+
+  document.getElementById('version').textContent = `v${chrome.runtime.getManifest().version}`;
+
+  // Reset takes a second click within a few seconds, so a stray click can't
+  // wipe the settings.
+  let resetTimer = null;
+  resetButton.addEventListener('click', () => {
+    if (!resetButton.classList.contains('confirming')) {
+      resetButton.classList.add('confirming');
+      resetButton.textContent = 'Reset all 7? Click again';
+      resetTimer = setTimeout(() => {
+        resetButton.classList.remove('confirming');
+        resetButton.textContent = 'Reset';
+      }, 4000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    const { extensionEnabled, ...defaults } = TubeToggles.DEFAULTS;
+    chrome.storage.sync.set(defaults);
+    resetButton.classList.remove('confirming');
+    resetButton.textContent = 'Reset done';
+    setTimeout(() => { resetButton.textContent = 'Reset'; }, 2000);
   });
 });

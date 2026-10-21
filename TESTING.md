@@ -17,7 +17,9 @@ The end-to-end tests load `src/` into Playwright's Chromium and check, on real v
 - with voice boost on, stable volume is left alone (YouTube greys it out)
 - the original audio track replaces YouTube's dub, in a Hindi browser
 - annotations are found in a German browser, where the label is translated
-- the master switch stops all changes; the popup lists every setting, always with a value, and saves choices
+- the master switch stops all changes
+- the popup shows switches and dropdowns in Audio and Video sections, greys out stable volume while voice boost is on, saves choices, and resets only on a second click
+- the popup's theme follows YouTube's light or dark theme, and the theme button's light or dark pick is kept over it
 
 ## Manual, before each release
 
@@ -31,5 +33,6 @@ Load `src/` unpacked in your own Chrome (`chrome://extensions` → Developer mod
 6. **Several tabs.** With two YouTube tabs open, change a setting in the popup: both tabs follow.
 7. **Other sites.** Open the popup on a non-YouTube tab and change a setting: no errors, and it applies once you open YouTube.
 8. **Master switch.** Turn TubeToggles off: settings in YouTube stay as you leave them. Turn it back on: your settings return.
-9. **Original audio.** On a video with dubbed audio tracks (many MrBeast videos), the original language plays.
-10. **Ads.** Watch a video with an ad: nothing happens during the ad; settings apply once the video starts.
+9. **Popup.** The status line says "Active on this video" on a video tab. The popup's light/dark theme matches YouTube's after you switch YouTube's appearance; the theme button cycles Match YouTube → Light → Dark and the pick sticks. The footer links open the store reviews and GitHub Issues.
+10. **Original audio.** On a video with dubbed audio tracks (many MrBeast videos), the original language plays.
+11. **Ads.** Watch a video with an ad: nothing happens during the ad; settings apply once the video starts.

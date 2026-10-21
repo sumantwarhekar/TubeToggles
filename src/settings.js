@@ -21,14 +21,15 @@ var TubeToggles = (() => {
     { value: 'tiny', label: '144p' },
   ];
 
+  // In popup order. Descriptions are kept to one line in the popup.
   const SETTINGS = {
-    stableVolume: { kind: 'toggle', label: 'Stable volume', description: 'Evens out loud and quiet sounds' },
-    voiceBoost: { kind: 'toggle', label: 'Voice boost', description: 'Clearer speech; turns off stable volume' },
-    audioTrack: { kind: 'audioTrack', label: 'Audio track', description: 'Skips AI dubbing on multi-language videos' },
-    quality: { kind: 'quality', label: 'Quality', description: 'Falls back to the next lower quality' },
-    ambientMode: { kind: 'toggle', label: 'Ambient mode', description: 'Soft glow around the player, where YouTube offers it' },
-    theaterMode: { kind: 'toggle', label: 'Theater mode', description: 'Wide player' },
-    annotations: { kind: 'toggle', label: 'Annotations', description: 'End screens and cards, where YouTube offers it' },
+    stableVolume: { group: 'Audio', kind: 'toggle', label: 'Stable volume', description: 'Evens out loud and quiet parts' },
+    voiceBoost: { group: 'Audio', kind: 'toggle', label: 'Voice boost', description: 'Makes speech clearer' },
+    audioTrack: { group: 'Audio', kind: 'audioTrack', label: 'Audio track', description: 'Original skips AI dubbing' },
+    quality: { group: 'Video', kind: 'quality', label: 'Quality', description: 'Next lower if not available' },
+    ambientMode: { group: 'Video', kind: 'toggle', label: 'Ambient mode', description: 'Soft glow around the player' },
+    theaterMode: { group: 'Video', kind: 'toggle', label: 'Theater mode', description: 'Wider player' },
+    annotations: { group: 'Video', kind: 'toggle', label: 'Annotations', description: "YouTube's switch, on some videos only" },
   };
 
   // YouTube's own defaults, except audio: the original track instead of a dub.
