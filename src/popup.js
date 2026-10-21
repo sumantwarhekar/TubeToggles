@@ -137,7 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
       current = TubeToggles.normalize(stored);
       render();
     }
-    if (areaName === 'local' && changes.tubeTheme) applyTheme(changes.tubeTheme.newValue);
+    if (areaName === 'local' && changes.tubeTheme) {
+      youTubeTheme = changes.tubeTheme.newValue;
+      applyTheme();
+    }
   });
 
   masterSwitch.addEventListener('change', () => {
@@ -157,17 +160,41 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ---------------------------------------------------------
-  // Theme: the same as YouTube's, as last seen by content.js
+  // Theme: matches YouTube's (as last seen by content.js) unless the user
+  // picks light or dark with the theme button. Their pick is kept apart from
+  // YouTube's theme, so YouTube never overrides it.
   // ---------------------------------------------------------
 
-  function applyTheme(theme) {
+  const themeButton = document.getElementById('themeButton');
+  const THEME_MODES = ['auto', 'light', 'dark'];
+  const THEME_LABELS = {
+    auto: 'Theme: matches YouTube. Click for light.',
+    light: 'Theme: light. Click for dark.',
+    dark: 'Theme: dark. Click to match YouTube.',
+  };
+  let themeMode = 'auto';
+  // Before any visit to YouTube, follow the system theme.
+  let youTubeTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+  function applyTheme() {
+    const theme = themeMode === 'auto' ? youTubeTheme : themeMode;
     document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+    themeButton.dataset.mode = themeMode;
+    themeButton.title = THEME_LABELS[themeMode];
+    themeButton.setAttribute('aria-label', THEME_LABELS[themeMode]);
   }
 
-  // Before any visit to YouTube, follow the system theme.
-  applyTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  chrome.storage.local.get('tubeTheme', ({ tubeTheme }) => {
-    if (tubeTheme) applyTheme(tubeTheme);
+  applyTheme();
+  chrome.storage.local.get(['tubeTheme', 'popupTheme'], ({ tubeTheme, popupTheme }) => {
+    if (tubeTheme) youTubeTheme = tubeTheme;
+    if (THEME_MODES.includes(popupTheme)) themeMode = popupTheme;
+    applyTheme();
+  });
+
+  themeButton.addEventListener('click', () => {
+    themeMode = THEME_MODES[(THEME_MODES.indexOf(themeMode) + 1) % THEME_MODES.length];
+    applyTheme();
+    chrome.storage.local.set({ popupTheme: themeMode });
   });
 
   // ---------------------------------------------------------

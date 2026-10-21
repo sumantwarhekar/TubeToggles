@@ -68,6 +68,41 @@ body {
   border-left: 8px solid #fff;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Theme button: shows the icon of the current mode */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background-color: var(--surface);
+}
+
+.icon-btn svg {
+  display: none;
+}
+
+.icon-btn[data-mode="auto"] .icon-auto,
+.icon-btn[data-mode="light"] .icon-light,
+.icon-btn[data-mode="dark"] .icon-dark {
+  display: block;
+}
+
 h1 {
   margin: 0;
   font-size: 16px;
@@ -284,6 +319,7 @@ select:disabled {
 
 /* Keyboard focus */
 .switch input:focus-visible + .track,
+.icon-btn:focus-visible,
 select:focus-visible,
 .footer a:focus-visible,
 .link-button:focus-visible {

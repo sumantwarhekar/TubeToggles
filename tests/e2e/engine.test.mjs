@@ -324,6 +324,40 @@ describe("YouTube's theme", () => {
     assert.equal(await popup.evaluate(() => document.documentElement.dataset.theme), 'dark');
     await popup.close();
   });
+
+  test("the theme button picks light or dark, and YouTube's theme doesn't override it", async () => {
+    const open = async () => {
+      const popup = await browser.context.newPage();
+      await popup.goto(`chrome-extension://${browser.extensionId}/popup.html`);
+      await popup.waitForTimeout(300);
+      return popup;
+    };
+    const theme = (popup) => popup.evaluate(() => document.documentElement.dataset.theme);
+    const setYouTubeTheme = (t) => browser.worker.evaluate((t) => chrome.storage.local.set({ tubeTheme: t }), t);
+
+    let popup = await open();
+    assert.equal(await theme(popup), 'dark', 'should match YouTube (dark) by default');
+    await popup.click('#themeButton');
+    assert.equal(await theme(popup), 'light');
+    assert.match(await popup.getAttribute('#themeButton', 'aria-label'), /light/);
+
+    // YouTube switching theme leaves the user's pick alone, now and next time.
+    await setYouTubeTheme('light');
+    await setYouTubeTheme('dark');
+    await popup.waitForTimeout(200);
+    assert.equal(await theme(popup), 'light');
+    await popup.close();
+    popup = await open();
+    assert.equal(await theme(popup), 'light', 'pick not kept');
+
+    await popup.click('#themeButton'); // dark
+    assert.equal(await theme(popup), 'dark');
+    await popup.click('#themeButton'); // back to matching YouTube
+    await setYouTubeTheme('light');
+    await popup.waitForTimeout(200);
+    assert.equal(await theme(popup), 'light', 'not following YouTube again');
+    await popup.close();
+  });
 });
 
 describe('Hindi browser', () => {
