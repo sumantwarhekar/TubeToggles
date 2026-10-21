@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TubeToggles",
+  "name": "TubeToggles: Player Settings for YouTube",
   "version": "2.0.0",
-  "description": "Quickly toggle YouTube features like Stable Volume, Voice Boost, Ambient Mode, and Annotations.",
+  "description": "Your YouTube settings on every video: stable volume, voice boost, original audio instead of dubs, quality, theater mode and more.",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage"
