@@ -4,7 +4,9 @@
   "description": "Chrome extension that keeps your preferred YouTube player settings applied.",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
+    "test:unit": "node --test \"tests/unit/*.test.mjs\""
   },
   "devDependencies": {
     "playwright": "^1.64.1"

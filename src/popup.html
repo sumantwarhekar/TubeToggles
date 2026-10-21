@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TubeToggles</title>
   <link rel="stylesheet" href="popup.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="dark-mode">
   <div id="app-container">
@@ -13,8 +12,8 @@
       <div class="logo">
         <div class="logo-icon"></div>
         <h1>TubeToggles</h1>
-        <label class="switch master-switch">
-          <input type="checkbox" id="extensionEnabled">
+        <label class="switch master-switch" title="Turn TubeToggles on or off">
+          <input type="checkbox" id="extensionEnabled" aria-label="TubeToggles on">
           <span class="slider round"></span>
         </label>
       </div>
@@ -38,53 +37,13 @@
       </button>
     </div>
 
-    <div class="content">
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <span class="toggle-title">Stable Volume</span>
-          <span class="toggle-desc">Balance loud and quiet sounds</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="stableVolume">
-          <span class="slider round"></span>
-        </label>
-      </div>
+    <!-- One row per setting, built from settings.js -->
+    <div class="content" id="settings"></div>
 
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <span class="toggle-title">Voice Boost</span>
-          <span class="toggle-desc">Enhance speech clarity</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="voiceBoost">
-          <span class="slider round"></span>
-        </label>
-      </div>
-
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <span class="toggle-title">Ambient Mode</span>
-          <span class="toggle-desc">Cinematic lighting effect</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="ambientMode">
-          <span class="slider round"></span>
-        </label>
-      </div>
-
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <span class="toggle-title">Annotations</span>
-          <span class="toggle-desc">End screens and info cards</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="annotations">
-          <span class="slider round"></span>
-        </label>
-      </div>
-    </div>
+    <p class="footnote">Changes you make in YouTube's player are saved here too.</p>
   </div>
 
+  <script src="settings.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

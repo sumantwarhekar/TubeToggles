@@ -1,5 +1,5 @@
 // Research probe: checks that the player API setters actually change each
-// setting, in dark theme (ambient mode only exists there), and which menu rows
+// setting, in dark theme (ambient mode can appear late), and which menu rows
 // show up on different videos. Runs WITHOUT the extension.
 //
 //   node tests/research/probe-actions.mjs
