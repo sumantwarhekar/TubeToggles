@@ -3,7 +3,8 @@
 //
 // Stored values: toggles are true / false, audioTrack is 'original' or a
 // language code, quality is 'auto', 'highest' or a YouTube quality level.
-// null means "don't change": TubeToggles leaves that setting to YouTube.
+// Every setting always has a value; to leave YouTube alone entirely, the user
+// turns TubeToggles off with the master switch.
 
 var TubeToggles = (() => {
   // Highest first, using the player API's own level names.
@@ -25,20 +26,21 @@ var TubeToggles = (() => {
     voiceBoost: { kind: 'toggle', label: 'Voice boost', description: 'Clearer speech; turns off stable volume' },
     audioTrack: { kind: 'audioTrack', label: 'Audio track', description: 'Skips AI dubbing on multi-language videos' },
     quality: { kind: 'quality', label: 'Quality', description: 'Falls back to the next lower quality' },
-    ambientMode: { kind: 'toggle', label: 'Ambient mode', description: 'Soft glow around the player, in dark theme' },
+    ambientMode: { kind: 'toggle', label: 'Ambient mode', description: 'Soft glow around the player, where YouTube offers it' },
     theaterMode: { kind: 'toggle', label: 'Theater mode', description: 'Wide player' },
     annotations: { kind: 'toggle', label: 'Annotations', description: 'End screens and cards, where YouTube offers it' },
   };
 
+  // YouTube's own defaults, except audio: the original track instead of a dub.
   const DEFAULTS = {
     extensionEnabled: true,
-    stableVolume: null,
-    voiceBoost: null,
+    stableVolume: true,
+    voiceBoost: false,
     audioTrack: 'original',
-    quality: null,
-    ambientMode: null,
-    theaterMode: null,
-    annotations: null,
+    quality: 'auto',
+    ambientMode: true,
+    theaterMode: false,
+    annotations: true,
   };
 
   const QUALITY_VALUES = new Set(['auto', 'highest', ...QUALITY_LEVELS.map((q) => q.value)]);
@@ -48,7 +50,6 @@ var TubeToggles = (() => {
     if (key === 'extensionEnabled') return typeof value === 'boolean';
     const setting = SETTINGS[key];
     if (!setting) return false;
-    if (value === null) return true;
     switch (setting.kind) {
       case 'toggle': return typeof value === 'boolean';
       case 'audioTrack': return value === 'original' || (typeof value === 'string' && LANGUAGE_CODE.test(value));

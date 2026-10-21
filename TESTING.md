@@ -17,7 +17,7 @@ The end-to-end tests load `src/` into Playwright's Chromium and check, on real v
 - with voice boost on, stable volume is left alone (YouTube greys it out)
 - the original audio track replaces YouTube's dub, in a Hindi browser
 - annotations are found in a German browser, where the label is translated
-- the master switch stops all changes; the popup lists every setting and saves choices
+- the master switch stops all changes; the popup lists every setting, always with a value, and saves choices
 
 ## Manual, before each release
 
@@ -25,7 +25,7 @@ Load `src/` unpacked in your own Chrome (`chrome://extensions` → Developer mod
 
 1. **Upgrade keeps your settings.** With the store version installed and set up, load the new version over it. Open the popup: your previous choices are still there.
 2. **Nothing flashes.** Open a few videos. The settings menu never visibly opens, and the control bar doesn't pop up on its own.
-3. **Settings apply.** Set each of the 7 settings in the popup and open a video; check the gear menu matches. Ambient mode needs YouTube's dark theme.
+3. **Settings apply.** Set each of the 7 settings in the popup and open a video; check the gear menu matches. Ambient mode only shows when YouTube's layout leaves room for it (often only in theater mode).
 4. **Your changes stick.** Change a setting in YouTube's gear menu (or press T for theater). A short "TubeToggles saved" notice appears, the popup shows the new value, and the next video uses it.
 5. **No fighting.** Open the gear menu and browse it for a while (Quality, Playback speed): it stays open and nothing changes underneath you.
 6. **Several tabs.** With two YouTube tabs open, change a setting in the popup: both tabs follow.

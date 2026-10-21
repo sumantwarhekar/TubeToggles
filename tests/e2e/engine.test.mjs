@@ -85,8 +85,8 @@ describe('English browser, dark theme', () => {
       return { ok: 'audioTrack' in s, s };
     });
     assert.deepEqual(stored.s, {
-      extensionEnabled: true, stableVolume: null, voiceBoost: null, audioTrack: 'original',
-      quality: null, ambientMode: null, theaterMode: null, annotations: null,
+      extensionEnabled: true, stableVolume: true, voiceBoost: false, audioTrack: 'original',
+      quality: 'auto', ambientMode: true, theaterMode: false, annotations: true,
     });
   });
 
@@ -119,9 +119,9 @@ describe('English browser, dark theme', () => {
   });
 
   test('annotations and ambient mode are set through the hidden menu, which ends closed', async () => {
-    await setSettings(browser.worker, { quality: null, annotations: false, ambientMode: false, theaterMode: true });
+    await setSettings(browser.worker, { quality: 'auto', annotations: false, ambientMode: false, theaterMode: true });
     const page = await openYouTube(browser.context, watch(CLASSIC));
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(9000); // ambient mode's row can appear a few seconds in
     assert.equal((await playerState(page)).menuOpen, false, 'menu left open');
     const rows = await readMenuRows(page);
     assert.equal(rows[ICON.annotations], false, `annotations row: ${JSON.stringify(rows)}`);
@@ -168,7 +168,7 @@ describe('English browser, dark theme', () => {
   });
 
   test("the user's quality and audio track picks are saved and kept", async () => {
-    await setSettings(browser.worker, { quality: 'hd720', audioTrack: 'original', theaterMode: null });
+    await setSettings(browser.worker, { quality: 'hd720', audioTrack: 'original' });
     const page = await openYouTube(browser.context, watch(MULTI_AUDIO));
     await eventually(async () => ({ ok: (await playerState(page)).qualityPref === 'hd720' }));
     await page.waitForTimeout(3000);
@@ -208,7 +208,6 @@ describe('English browser, dark theme', () => {
       return { ok: s.qualityPref === 'auto', s };
     });
     assert.ok(result.ok, JSON.stringify(result.s));
-    await setSettings(browser.worker, { quality: null });
     await page.close();
   });
 
@@ -244,6 +243,8 @@ describe('English browser, dark theme', () => {
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`chrome-extension://${browser.extensionId}/popup.html`);
     assert.equal(await page.locator('select').count(), 7);
+    // Every setting always has a value: no "leave it to YouTube" choice.
+    assert.equal(await page.locator('option', { hasText: /change/i }).count(), 0);
     await page.selectOption('#setting-quality', 'hd1080');
     // Like YouTube, voice boost on means stable volume off.
     await page.selectOption('#setting-voiceBoost', 'on');
@@ -258,7 +259,7 @@ describe('English browser, dark theme', () => {
   });
 
   test('with voice boost on, stable volume is left alone instead of fought over', async () => {
-    await setSettings(browser.worker, { voiceBoost: true, stableVolume: null, quality: null });
+    await setSettings(browser.worker, { voiceBoost: true, stableVolume: false, quality: 'auto' });
     const page = await openYouTube(browser.context, watch(MULTI_AUDIO));
     await eventually(async () => ({ ok: (await playerState(page)).voiceBoost }));
     // Stored directly, bypassing the popup's rule, to check the engine copes.

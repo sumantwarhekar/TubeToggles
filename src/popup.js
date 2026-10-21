@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const selects = {};
   let current = TubeToggles.normalize({});
 
-  // Select values are strings; '' means "don't change" (stored as null).
-  const toOption = (value) => (value === null ? '' : value === true ? 'on' : value === false ? 'off' : value);
-  const fromOption = (option) => (option === '' ? null : option === 'on' ? true : option === 'off' ? false : option);
+  // Select values are strings; toggles are stored as true / false.
+  const toOption = (value) => (value === true ? 'on' : value === false ? 'off' : value);
+  const fromOption = (option) => (option === 'on' ? true : option === 'off' ? false : option);
 
   function optionsFor(key) {
     const kind = TubeToggles.SETTINGS[key].kind;
@@ -26,10 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function fillSelect(key) {
     const select = selects[key];
-    select.replaceChildren(
-      new Option("Don't change", ''),
-      ...optionsFor(key).map(([value, label]) => new Option(label, value)),
-    );
+    select.replaceChildren(...optionsFor(key).map(([value, label]) => new Option(label, value)));
     select.value = toOption(current[key]);
   }
 

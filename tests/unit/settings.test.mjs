@@ -15,15 +15,16 @@ test('settings saved by 1.0.0 are kept after the update', () => {
   const v1 = { stableVolume: true, voiceBoost: false, ambientMode: true, annotations: true, extensionEnabled: true };
   assert.deepEqual({ ...TubeToggles.normalize(v1) }, {
     extensionEnabled: true, stableVolume: true, voiceBoost: false, audioTrack: 'original',
-    quality: null, ambientMode: true, theaterMode: null, annotations: true,
+    quality: 'auto', ambientMode: true, theaterMode: false, annotations: true,
   });
 });
 
 test('invalid or unknown stored values fall back to the defaults', () => {
-  const normalized = TubeToggles.normalize({ quality: '9000p', audioTrack: 42, theaterMode: 'yes', bogus: 1 });
-  assert.equal(normalized.quality, null);
+  const normalized = TubeToggles.normalize({ quality: '9000p', audioTrack: 42, theaterMode: 'yes', ambientMode: null, bogus: 1 });
+  assert.equal(normalized.quality, 'auto');
   assert.equal(normalized.audioTrack, 'original');
-  assert.equal(normalized.theaterMode, null);
+  assert.equal(normalized.theaterMode, false);
+  assert.equal(normalized.ambientMode, true);
   assert.equal('bogus' in normalized, false);
 });
 
@@ -34,7 +35,7 @@ test('values are validated per kind of setting', () => {
   assert.equal(TubeToggles.isValid('audioTrack', 'original'), true);
   assert.equal(TubeToggles.isValid('audioTrack', 'pt-BR'), true);
   assert.equal(TubeToggles.isValid('audioTrack', '<script>'), false);
-  assert.equal(TubeToggles.isValid('theaterMode', null), true);
+  assert.equal(TubeToggles.isValid('theaterMode', null), false);
   assert.equal(TubeToggles.isValid('extensionEnabled', null), false);
   assert.equal(TubeToggles.isValid('notASetting', true), false);
 });
@@ -43,7 +44,7 @@ test('turning voice boost or stable volume on turns the other off', () => {
   const both = { stableVolume: true, voiceBoost: true };
   assert.deepEqual({ ...TubeToggles.changesFor(both, 'voiceBoost', true) }, { voiceBoost: true, stableVolume: false });
   assert.deepEqual({ ...TubeToggles.changesFor(both, 'stableVolume', true) }, { stableVolume: true, voiceBoost: false });
-  assert.deepEqual({ ...TubeToggles.changesFor({ stableVolume: null }, 'voiceBoost', true) }, { voiceBoost: true });
+  assert.deepEqual({ ...TubeToggles.changesFor({ stableVolume: false }, 'voiceBoost', true) }, { voiceBoost: true });
   assert.deepEqual({ ...TubeToggles.changesFor(both, 'voiceBoost', false) }, { voiceBoost: false });
 });
 

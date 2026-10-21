@@ -21,8 +21,8 @@
   const USER_GRACE_MS = 2000;  // hold off right after the user touches the player
   const RETRY_MS = 5000;       // minimum gap between repeated attempts at one fix
   const API_SETTLE_MS = 2000;  // let an API change show in the menu before checking it there
-  const AMBIENT_RETRIES = 8;   // extra menu passes per video while ambient mode's row is missing
-  const AMBIENT_RETRY_MS = 2000;
+  const AMBIENT_RETRIES = 5;   // extra menu passes per video while ambient mode's row is missing
+  const AMBIENT_RETRY_MS = 1500;
 
   // Rows without a stable class are recognised by the start of their icon's
   // path, which YouTube draws the same way in every UI language. English
@@ -161,14 +161,14 @@
 
   function applyStableVolume(p) {
     const wanted = settings.stableVolume;
-    if (wanted === null || typeof p.setDrcUserPreference !== 'function') return;
+    if (typeof p.setDrcUserPreference !== 'function') return;
     if (voiceBoostOn(p)) return; // unavailable while voice boost is on
     if (stableVolumeOn(p) !== wanted) attempt('drc', () => p.setDrcUserPreference(wanted ? DRC_ON : DRC_OFF));
   }
 
   function applyVoiceBoost(p) {
     const wanted = settings.voiceBoost;
-    if (wanted === null || typeof p.setVoiceBoostUserPreference !== 'function') return;
+    if (typeof p.setVoiceBoostUserPreference !== 'function') return;
     if (voiceBoostOn(p) !== wanted) {
       attempt('voice', () => p.setVoiceBoostUserPreference(wanted ? VOICE_BOOST_ON : VOICE_BOOST_OFF));
     }
@@ -176,7 +176,7 @@
 
   function applyAudioTrack(p) {
     const wanted = settings.audioTrack;
-    if (wanted === null || typeof p.getAvailableAudioTracks !== 'function') return;
+    if (typeof p.getAvailableAudioTracks !== 'function') return;
     const tracks = (p.getAvailableAudioTracks() ?? []).map((track) => ({ track, info: trackInfo(track) })).filter((t) => t.info);
     if (tracks.length < 2) return;
 
@@ -210,7 +210,7 @@
 
   function applyQuality(p) {
     const wanted = settings.quality;
-    if (wanted === null || typeof p.setPlaybackQualityRange !== 'function') return;
+    if (typeof p.setPlaybackQualityRange !== 'function') return;
     const target = qualityTarget(p, wanted);
     if (!target) return;
     if (p.getUserPlaybackQualityPreference?.() !== target) {
@@ -220,7 +220,7 @@
 
   function applyTheater(p) {
     const wanted = settings.theaterMode;
-    if (wanted === null || document.fullscreenElement) return;
+    if (document.fullscreenElement) return;
     if (!document.querySelector('ytd-watch-flexy')) return;
     if (theaterOn() !== wanted) {
       attempt('theater', () => {
@@ -236,12 +236,12 @@
   // ---------------------------------------------------------
 
   function needsMenuPass() {
-    if (!MENU_SETTINGS.some((key) => settings[key] !== null)) return false;
     if (menuPassDoneFor !== videoId) return true;
-    // Ambient mode's row shows up only once YouTube has set up the glow, which
-    // can be several seconds into the video, so look again a few times.
-    return ambientRowMissing && settings.ambientMode !== null &&
-      ambientRetries < AMBIENT_RETRIES && now() - lastMenuPass > AMBIENT_RETRY_MS;
+    // Ambient mode's row appears only when the layout leaves room for the glow
+    // (often only in theater mode), and only once YouTube has set the glow up,
+    // which can take a few seconds. Look again a few times; layout changes
+    // trigger a fresh look on their own (see recheckAmbient).
+    return ambientRowMissing && ambientRetries < AMBIENT_RETRIES && now() - lastMenuPass > AMBIENT_RETRY_MS;
   }
 
   async function runMenuPass(p) {
@@ -268,7 +268,6 @@
       for (const key of MENU_SETTINGS) {
         if (userTookOverMenu) return;
         const wanted = settings[key];
-        if (wanted === null) continue;
         if (key === 'stableVolume' && voiceBoostOn(p)) continue;
         // Looked up fresh each time: one click can change other rows.
         const row = checkboxRows().find((r) => identifyRow(r) === key);
@@ -341,17 +340,16 @@
   setInterval(tick, TICK_MS);
   document.addEventListener('yt-navigate-finish', () => setTimeout(tick, SETTLE_MS));
 
-  // A different window size or theme can make ambient mode's row appear.
+  // A different window size can make ambient mode's row appear.
   const recheckAmbient = () => { if (ambientRowMissing) menuPassDoneFor = null; };
   window.addEventListener('resize', recheckAmbient);
-  new MutationObserver(recheckAmbient).observe(document.documentElement, { attributes: true, attributeFilter: ['dark'] });
 
   // ---------------------------------------------------------
   // Saving the user's own changes back as the new settings
   // ---------------------------------------------------------
 
   function report(key, value) {
-    if (!settings || settings[key] === null || value === null || settings[key] === value) return;
+    if (!settings || value === null || settings[key] === value) return;
     settings = { ...settings, [key]: value };
     window.postMessage({ source: FROM_PAGE, type: 'userChange', key, value }, location.origin);
     showToast(key, value);
