@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "TubeToggles",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Quickly toggle YouTube features like Stable Volume, Voice Boost, Ambient Mode, and Annotations.",
+  "minimum_chrome_version": "111",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*"
+    "https://www.youtube.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -24,12 +25,23 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.youtube.com/*"
+        "https://www.youtube.com/*"
       ],
       "js": [
+        "settings.js",
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "page.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "icons": {

@@ -8,6 +8,8 @@
   --toggle-bg: #717171;
   --toggle-checked: #ff0000;
   --icon-color: #f1f1f1;
+  --select-bg: #272727;
+  --select-border: #3f3f3f;
 }
 
 body.light-mode {
@@ -20,13 +22,15 @@ body.light-mode {
   --toggle-bg: #cccccc;
   --toggle-checked: #ff0000;
   --icon-color: #0f0f0f;
+  --select-bg: #f2f2f2;
+  --select-border: #d9d9d9;
 }
 
 body {
   width: 340px;
   margin: 0;
   padding: 0;
-  font-family: 'Roboto', Arial, sans-serif;
+  font-family: Roboto, system-ui, 'Segoe UI', Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -112,14 +116,22 @@ body:not(.light-mode) .moon-icon {
 }
 
 .content {
-  padding: 12px 8px;
+  padding: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.content.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 12px;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
   margin: 4px;
   border-radius: 12px; /* modern rounded rows */
   transition: background-color 0.2s ease;
@@ -206,4 +218,32 @@ input:checked + .slider:before {
 
 .slider.round:before {
   border-radius: 50%;
+}
+
+/* Setting dropdowns */
+select {
+  flex-shrink: 0;
+  width: 112px;
+  padding: 6px 8px;
+  border: 1px solid var(--select-border);
+  border-radius: 8px;
+  background-color: var(--select-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+select:focus-visible,
+.icon-btn:focus-visible,
+.switch input:focus-visible + .slider {
+  outline: 2px solid var(--toggle-checked);
+  outline-offset: 2px;
+}
+
+.footnote {
+  margin: 0;
+  padding: 0 20px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }

@@ -1,52 +1,100 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const toggles = {
-    stableVolume: document.getElementById('stableVolume'),
-    voiceBoost: document.getElementById('voiceBoost'),
-    ambientMode: document.getElementById('ambientMode'),
-    annotations: document.getElementById('annotations')
-  };
-
+  const settingsDiv = document.getElementById('settings');
   const extensionEnabled = document.getElementById('extensionEnabled');
   const themeToggleBtn = document.getElementById('themeToggle');
-  const contentDiv = document.querySelector('.content');
+  const selects = {};
+  let current = TubeToggles.normalize({});
 
-  function updateDimming(isEnabled) {
-    if (isEnabled) {
-      contentDiv.style.opacity = '1';
-      contentDiv.style.pointerEvents = 'auto';
-    } else {
-      contentDiv.style.opacity = '0.5';
-      contentDiv.style.pointerEvents = 'none';
+  // Select values are strings; '' means "don't change" (stored as null).
+  const toOption = (value) => (value === null ? '' : value === true ? 'on' : value === false ? 'off' : value);
+  const fromOption = (option) => (option === '' ? null : option === 'on' ? true : option === 'off' ? false : option);
+
+  function optionsFor(key) {
+    const kind = TubeToggles.SETTINGS[key].kind;
+    if (kind === 'toggle') return [['on', 'On'], ['off', 'Off']];
+    if (kind === 'quality') {
+      return [['auto', 'Auto'], ['highest', 'Highest available'],
+        ...TubeToggles.QUALITY_LEVELS.map((q) => [q.value, q.label])];
     }
+    const options = [['original', 'Original']];
+    // A language saved from the player gets its own entry.
+    if (current.audioTrack && current.audioTrack !== 'original') {
+      options.push([current.audioTrack, TubeToggles.languageLabel(current.audioTrack)]);
+    }
+    return options;
   }
 
-  // Load saved settings
-  chrome.storage.sync.get(['stableVolume', 'voiceBoost', 'ambientMode', 'annotations', 'extensionEnabled'], (result) => {
-    Object.keys(toggles).forEach(key => {
-      if (result[key] !== undefined) {
-        toggles[key].checked = result[key];
-      }
-    });
+  function fillSelect(key) {
+    const select = selects[key];
+    select.replaceChildren(
+      new Option("Don't change", ''),
+      ...optionsFor(key).map(([value, label]) => new Option(label, value)),
+    );
+    select.value = toOption(current[key]);
+  }
 
-    if (result.extensionEnabled !== undefined) {
-      extensionEnabled.checked = result.extensionEnabled;
-      updateDimming(result.extensionEnabled);
-    } else {
-      extensionEnabled.checked = true; // default
-      updateDimming(true);
-      chrome.storage.sync.set({ extensionEnabled: true });
+  for (const [key, setting] of Object.entries(TubeToggles.SETTINGS)) {
+    const row = document.createElement('label');
+    row.className = 'toggle-row';
+    row.htmlFor = `setting-${key}`;
+
+    const info = document.createElement('div');
+    info.className = 'toggle-info';
+    const title = document.createElement('span');
+    title.className = 'toggle-title';
+    title.textContent = setting.label;
+    const desc = document.createElement('span');
+    desc.className = 'toggle-desc';
+    desc.textContent = setting.description;
+    info.append(title, desc);
+
+    const select = document.createElement('select');
+    select.id = `setting-${key}`;
+    select.addEventListener('change', () => {
+      chrome.storage.sync.set(TubeToggles.changesFor(current, key, fromOption(select.value)));
+    });
+    selects[key] = select;
+
+    row.append(info, select);
+    settingsDiv.appendChild(row);
+  }
+
+  function updateDimming(isEnabled) {
+    settingsDiv.classList.toggle('disabled', !isEnabled);
+    Object.values(selects).forEach((select) => { select.disabled = !isEnabled; });
+  }
+
+  function render() {
+    Object.keys(selects).forEach(fillSelect);
+    extensionEnabled.checked = current.extensionEnabled;
+    updateDimming(current.extensionEnabled);
+  }
+
+  chrome.storage.sync.get(null, (stored) => {
+    current = TubeToggles.normalize(stored);
+    render();
+  });
+
+  // Stay in sync with changes saved from the player while the popup is open.
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync') {
+      const stored = { ...current };
+      for (const [key, { newValue }] of Object.entries(changes)) stored[key] = newValue;
+      current = TubeToggles.normalize(stored);
+      render();
     }
+    if (areaName === 'local' && changes.tubeTheme) {
+      applyTheme(changes.tubeTheme.newValue);
+    }
+  });
+
+  extensionEnabled.addEventListener('change', (e) => {
+    chrome.storage.sync.set({ extensionEnabled: e.target.checked });
   });
 
   // Load theme
   chrome.storage.local.get(['tubeTheme'], (result) => {
     applyTheme(result.tubeTheme || 'dark');
-  });
-
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.tubeTheme) {
-      applyTheme(changes.tubeTheme.newValue);
-    }
   });
 
   function applyTheme(theme) {
@@ -58,35 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.classList.remove('light-mode');
     }
   }
-
-  function notifyContentScript(key, value) {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].url.includes('youtube.com')) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: 'toggleChanged',
-          setting: key,
-          value: value
-        }).catch(() => {});
-      }
-    });
-  }
-
-  // Master Toggle listener
-  extensionEnabled.addEventListener('change', (e) => {
-    const isEnabled = e.target.checked;
-    updateDimming(isEnabled);
-    chrome.storage.sync.set({ extensionEnabled: isEnabled });
-    notifyContentScript('extensionEnabled', isEnabled);
-  });
-
-  // Save settings when toggled and notify content script
-  Object.keys(toggles).forEach(key => {
-    toggles[key].addEventListener('change', (e) => {
-      const newValue = e.target.checked;
-      chrome.storage.sync.set({ [key]: newValue });
-      notifyContentScript(key, newValue);
-    });
-  });
 
   // Theme toggle button click listener
   themeToggleBtn.addEventListener('click', () => {
