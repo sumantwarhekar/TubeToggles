@@ -9,3 +9,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Store image captures (intermediate)
+store/.build/
